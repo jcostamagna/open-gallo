@@ -14,7 +14,7 @@ const SHEETS = {
     id: '1Gpbz7MRRn_T8TVITS9NKRSQEBmsiLd21hjqhHR2Xqfg',
     name: 'Gallo',
     matchesGid: 0,
-    playersGid: null,
+    playersGid: 234960034,  // Jugadores 2026 tab
     columns: null,
     domains: ['opengallo', 'gallo']
   }
