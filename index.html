@@ -1,0 +1,74 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Partidos - Max Pato</title>
+  <link rel="stylesheet" href="styles.css">
+  <link href="https://fonts.googleapis.com/css2?family=Roboto:wght@400;500;700&display=swap" rel="stylesheet">
+  <script src="config.js"></script>
+  <script defer src="script.js"></script>
+  <style>
+    .matches-container {
+      display: flex;
+      flex-direction: column;
+      gap: 12px;
+    }
+    .date-group {
+      background: #0d3525;
+      border-radius: 6px;
+      overflow: hidden;
+    }
+    .date-header {
+      background: #062117;
+      padding: 8px 12px;
+      font-weight: 600;
+      font-size: 12px;
+      color: #8fbfae;
+    }
+    .match-row {
+      display: flex;
+      align-items: center;
+      padding: 6px 12px;
+      border-bottom: 1px solid #1a5a40;
+      font-size: 13px;
+    }
+    .match-row:last-child {
+      border-bottom: none;
+    }
+    .match-row:hover {
+      background: #145535;
+    }
+    .winner {
+      flex: 1;
+      color: #4ade80;
+      font-weight: 500;
+    }
+    .vs {
+      color: #6b7280;
+      padding: 0 8px;
+      font-size: 11px;
+    }
+    .loser {
+      flex: 1;
+      text-align: right;
+      color: #f87171;
+    }
+  </style>
+</head>
+<body>
+  <div class="container">
+    <nav>
+      <a href="index.html">Partidos</a>
+      <a href="posiciones.html">Posiciones</a>
+      <a href="equipos.html">Equipos</a>
+    </nav>
+
+    <h1>Historial de Partidos</h1>
+
+    <div id="matchesContainer" class="matches-container">
+      <!-- JS will inject grouped matches here -->
+    </div>
+  </div>
+</body>
+</html>

@@ -1,0 +1,33 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Equipos - Max Pato</title>
+  <link rel="stylesheet" href="styles.css">
+  <link href="https://fonts.googleapis.com/css2?family=Roboto:wght@400;500;700&display=swap" rel="stylesheet">
+  <script src="config.js"></script>
+  <script defer src="equipos.js"></script>
+</head>
+<body>
+  <div class="container">
+    <nav>
+      <a href="index.html">Partidos</a>
+      <a href="posiciones.html">Posiciones</a>
+      <a href="equipos.html">Equipos</a>
+    </nav>
+
+    <h1>Seleccionar Jugadores</h1>
+
+    <div class="table-container" style="padding: 12px;">
+      <div id="playersList" class="players-grid"></div>
+    </div>
+
+    <div style="margin-top: 16px;">
+      <button onclick="generateTeams()" class="btn-primary">
+        Generar Equipos
+      </button>
+    </div>
+  </div>
+</body>
+</html>
