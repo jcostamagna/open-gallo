@@ -47,7 +47,9 @@ const CORS_PROXY = 'https://corsproxy.io/?';
 
 // Build Google Sheets CSV export URL (with CORS proxy)
 function buildSheetUrl(sheetId, gid = 0) {
-  const sheetUrl = `https://docs.google.com/spreadsheets/d/${sheetId}/export?format=csv&gid=${gid}`;
+  // Add cache-busting parameter (changes every minute)
+  const cacheBust = Math.floor(Date.now() / 60000);
+  const sheetUrl = `https://docs.google.com/spreadsheets/d/${sheetId}/export?format=csv&gid=${gid}&_=${cacheBust}`;
   return CORS_PROXY + encodeURIComponent(sheetUrl);
 }
 
