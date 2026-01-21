@@ -1,13 +1,98 @@
 let allMatches = [];
 
+// Extract unique years from matches data
+function getAvailableYears(matches) {
+  const years = new Set();
+  matches.forEach(match => {
+    const dateStr = match['Fecha'];
+    if (dateStr) {
+      const year = dateStr.split('/')[2];
+      if (year && !isNaN(year)) {
+        years.add(Number(year));
+      }
+    }
+  });
+  return Array.from(years).sort((a, b) => b - a); // Descending order (newest first)
+}
+
+// Calculate max matches played by any player (for a given year filter)
+function getMaxMatchesPlayed(matches, filterYear = null) {
+  const stats = {};
+  matches.forEach(match => {
+    const dateStr = match['Fecha'];
+    const year = dateStr ? dateStr.split('/')[2] : null;
+
+    if (filterYear && Number(year) !== Number(filterYear)) return;
+
+    const winner = match['Equipo Ganador']?.trim();
+    const loser = match['Equipo Perdedor']?.trim();
+
+    if (winner) {
+      stats[winner] = (stats[winner] || 0) + 1;
+    }
+    if (loser) {
+      stats[loser] = (stats[loser] || 0) + 1;
+    }
+  });
+
+  const counts = Object.values(stats);
+  return counts.length > 0 ? Math.max(...counts) : 0;
+}
+
+// Calculate smart default for min matches: multiple of 5, less than half of top player's matches
+function getSmartMinMatchesDefault(maxMatches) {
+  const halfMax = maxMatches / 2;
+  // Find largest multiple of 5 that is less than halfMax
+  const smartDefault = Math.floor(halfMax / 5) * 5;
+  return Math.max(0, smartDefault); // At least 0
+}
+
+// Populate year filter dropdown
+function populateYearFilter(years, defaultYear) {
+  const select = document.getElementById('yearFilter');
+  select.innerHTML = '';
+
+  // Add "Todos" option
+  const allOption = document.createElement('option');
+  allOption.value = '';
+  allOption.textContent = 'Todos';
+  select.appendChild(allOption);
+
+  // Add year options
+  years.forEach(year => {
+    const option = document.createElement('option');
+    option.value = year;
+    option.textContent = year;
+    if (year === defaultYear) {
+      option.selected = true;
+    }
+    select.appendChild(option);
+  });
+}
+
+// Populate min matches dropdown
+function populateMinMatchesFilter(maxMatches, defaultValue) {
+  const select = document.getElementById('minMatches');
+  select.innerHTML = '';
+
+  // Generate options: 0, 5, 10, 15, ... up to a reasonable max
+  const maxOption = Math.min(maxMatches, 50); // Cap at 50 for UI sanity
+  for (let i = 0; i <= maxOption; i += 5) {
+    const option = document.createElement('option');
+    option.value = i;
+    option.textContent = i;
+    if (i === defaultValue) {
+      option.selected = true;
+    }
+    select.appendChild(option);
+  }
+}
+
 function updateLeaderboardFromFilters() {
   const year = document.getElementById('yearFilter')?.value || null;
   const minMatches = parseInt(document.getElementById('minMatches').value) || 0;
   renderLeaderboard(year, minMatches);
 }
-
-document.getElementById('minMatches').addEventListener('input', updateLeaderboardFromFilters);
-document.getElementById('yearFilter')?.addEventListener('change', updateLeaderboardFromFilters);
 
 // Fetch matches and render leaderboard (filtered by valid players)
 fetchMatchesWithPlayers()
@@ -30,9 +115,30 @@ fetchMatchesWithPlayers()
       };
     }).filter(Boolean);
 
+    // Get available years and set default to latest
+    const availableYears = getAvailableYears(allMatches);
+    const defaultYear = availableYears.length > 0 ? availableYears[0] : null;
+
+    // Calculate smart default for min matches based on the default year
+    const maxMatches = getMaxMatchesPlayed(allMatches, defaultYear);
+    const defaultMinMatches = getSmartMinMatchesDefault(maxMatches);
+
+    // Populate filters
+    populateYearFilter(availableYears, defaultYear);
+    populateMinMatchesFilter(maxMatches, defaultMinMatches);
+
+    // Add event listeners after populating
+    document.getElementById('minMatches').addEventListener('change', updateLeaderboardFromFilters);
+    document.getElementById('yearFilter').addEventListener('change', () => {
+      // When year changes, recalculate min matches options
+      const selectedYear = document.getElementById('yearFilter').value || null;
+      const newMaxMatches = getMaxMatchesPlayed(allMatches, selectedYear);
+      const newDefault = getSmartMinMatchesDefault(newMaxMatches);
+      populateMinMatchesFilter(newMaxMatches, newDefault);
+      updateLeaderboardFromFilters();
+    });
+
     // Initial render
-    const defaultYear = document.getElementById('yearFilter')?.value || null;
-    const defaultMinMatches = parseInt(document.getElementById('minMatches')?.value) || 5;
     renderLeaderboard(defaultYear, defaultMinMatches);
   })
   .catch(err => {
