@@ -6,19 +6,36 @@ const SHEETS = {
     matchesGid: 0,        // First tab (matches)
     playersGid: 515470337, // Jugadores tab
     // Column mappings - set to null to auto-detect from first row
-    columns: null
+    columns: null,
+    // Domain patterns that should show this group
+    domains: ['realmaxpato', 'maxpato']
   },
   gallo: {
     id: '1Gpbz7MRRn_T8TVITS9NKRSQEBmsiLd21hjqhHR2Xqfg',
     name: 'Gallo',
     matchesGid: 0,
     playersGid: null,
-    columns: null
+    columns: null,
+    domains: ['opengallo', 'gallo']
   }
 };
 
-// Default group - change this to switch between groups
-const CURRENT_GROUP = 'maxpato';
+// Auto-detect group based on domain
+function detectGroup() {
+  const host = window.location.hostname.toLowerCase();
+
+  // Check each group's domain patterns
+  for (const [groupId, config] of Object.entries(SHEETS)) {
+    if (config.domains && config.domains.some(d => host.includes(d))) {
+      return groupId;
+    }
+  }
+
+  // Default fallback (localhost, etc.)
+  return 'maxpato';
+}
+
+const CURRENT_GROUP = detectGroup();
 
 // Get the current sheet config
 function getCurrentSheet() {
