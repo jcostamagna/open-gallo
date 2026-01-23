@@ -13,21 +13,107 @@
 <body>
   <div class="container">
     <nav>
-      <a href="index.html">Partidos</a>
-      <a href="posiciones.html">Posiciones</a>
-      <a href="equipos.html">Equipos</a>
+      <a href="index.html">Posiciones</a>
+      <a href="partidos.html">Partidos</a>
+      <a href="equipos.html">Generador de Equipos</a>
     </nav>
 
-    <h1>Seleccionar Jugadores</h1>
+    <h1>Armar Equipos</h1>
 
-    <div class="table-container" style="padding: 12px;">
-      <div id="playersList" class="players-grid"></div>
+    <!-- Box 1: Selected players -->
+    <div class="section-box">
+      <div class="section-header">
+        <span class="section-title">Jugadores Seleccionados</span>
+        <div class="team-size-selector">
+          <label for="teamSize">Total:</label>
+          <select id="teamSize">
+            <option value="10">10</option>
+            <option value="12">12</option>
+            <option value="14">14</option>
+            <option value="16">16</option>
+            <option value="18">18</option>
+            <option value="20">20</option>
+            <option value="22">22</option>
+          </select>
+          <span class="selected-count"><strong id="selectedCount">0</strong> / <span id="targetCount">10</span></span>
+        </div>
+      </div>
+      <div id="selectedPlayersList" class="players-grid">
+        <div class="empty-message">No hay jugadores seleccionados</div>
+      </div>
+      <div class="section-footer">
+        <div class="generate-controls">
+          <div class="data-toggles">
+            <label class="toggle-switch">
+              <span class="toggle-text">Años Anteriores</span>
+              <input type="checkbox" id="useHistorical" checked onchange="handleToggleChange('historical')">
+              <span class="toggle-slider"></span>
+            </label>
+            <label class="toggle-switch">
+              <span class="toggle-text">Año Actual</span>
+              <input type="checkbox" id="useCurrentYear" checked onchange="handleToggleChange('currentYear')">
+              <span class="toggle-slider"></span>
+            </label>
+            <label class="toggle-switch">
+              <span class="toggle-text">Últimos 5</span>
+              <input type="checkbox" id="useForm" checked onchange="handleToggleChange('form')">
+              <span class="toggle-slider"></span>
+            </label>
+            <button onclick="showScoreInfo()" class="btn-info" title="¿Cómo se calcula el puntaje?">ℹ</button>
+          </div>
+          <button onclick="generateTeams()" class="btn-primary">Generar Equipos</button>
+        </div>
+      </div>
     </div>
 
-    <div style="margin-top: 16px;">
-      <button onclick="generateTeams()" class="btn-primary">
-        Generar Equipos
-      </button>
+    <!-- Score Info Modal -->
+    <div id="scoreInfoModal" class="modal" style="display: none;">
+      <div class="modal-content">
+        <div class="modal-header">
+          <span class="modal-title">¿Cómo se calcula el puntaje?</span>
+          <button onclick="hideScoreInfo()" class="modal-close">&times;</button>
+        </div>
+        <div class="modal-body">
+          <p>El puntaje de cada jugador combina tres factores:</p>
+          <ul>
+            <li><strong>Años Anteriores</strong> - Rendimiento histórico de todos los partidos jugados</li>
+            <li><strong>Año Actual</strong> - Rendimiento del año en curso</li>
+            <li><strong>Últimos 5</strong> - Forma reciente basada en los últimos 5 partidos (los más recientes pesan más)</li>
+          </ul>
+          <p><strong>Toggles:</strong> Podés activar o desactivar cada factor. El peso se redistribuye entre los activos. Siempre debe haber al menos uno activo.</p>
+          <p><strong>Factor de Confianza:</strong> Jugadores con pocos partidos tienen su puntaje ajustado hacia el promedio del grupo.</p>
+          <p><strong>Jugadores Invitados:</strong> Su porcentaje estimado se escala al rango del grupo (0% = peor jugador, 50% = promedio, 100% = mejor).</p>
+          <p><strong>Arqueros:</strong> Si hay 2 arqueros, se asignan a equipos diferentes.</p>
+        </div>
+      </div>
+    </div>
+
+    <!-- Teams Result Section -->
+    <div id="teamsResult" class="section-box teams-result" style="display: none;">
+    </div>
+
+    <!-- Box 2: Add guest player -->
+    <div class="section-box">
+      <div class="section-header">
+        <span class="section-title">Agregar Jugador Invitado</span>
+      </div>
+      <div class="guest-row">
+        <input type="text" id="guestName" placeholder="Nombre" class="guest-input">
+        <input type="number" id="guestPercentage" placeholder="%" min="0" max="100" class="guest-percentage">
+        <button onclick="addGuestPlayer()" class="btn-add">Agregar</button>
+      </div>
+    </div>
+
+    <!-- Box 3: Available players -->
+    <div class="section-box">
+      <div class="section-header">
+        <span class="section-title">Jugadores Disponibles</span>
+      </div>
+      <div class="search-wrapper">
+        <input type="text" id="searchPlayer" placeholder="Buscar jugador..." class="search-input">
+        <button type="button" id="clearSearch" class="clear-search">&times;</button>
+      </div>
+      <div id="availablePlayersList" class="players-grid"></div>
     </div>
   </div>
 </body>

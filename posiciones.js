@@ -188,8 +188,8 @@ function renderLeaderboard(filterYear = null, minMatches = 10) {
       };
     });
 
-  // Sort by % then wins
-  result.sort((a, b) => b.percentage - a.percentage || b.wins - a.wins);
+  // Sort by % then wins then total matches played
+  result.sort((a, b) => b.percentage - a.percentage || b.wins - a.wins || b.total - a.total);
 
   const tbody = document.getElementById('leaderboardTableBody');
   tbody.innerHTML = '';
