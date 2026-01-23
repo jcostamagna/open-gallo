@@ -930,26 +930,31 @@ input:focus, select:focus {
 
   .data-toggles {
     justify-content: center;
-    gap: 10px;
+    gap: 8px;
+    flex-wrap: nowrap;
   }
 
   .toggle-switch {
-    font-size: 11px;
-    gap: 6px;
+    font-size: 10px;
+    gap: 4px;
   }
 
   .toggle-slider {
-    width: 32px;
-    height: 18px;
+    width: 28px;
+    height: 16px;
   }
 
   .toggle-slider::after {
-    width: 14px;
-    height: 14px;
+    width: 12px;
+    height: 12px;
   }
 
   .toggle-switch input:checked + .toggle-slider::after {
-    transform: translateX(14px);
+    transform: translateX(12px);
+  }
+
+  .data-toggles .btn-info {
+    font-size: 16px;
   }
 
   .generate-controls .btn-primary {
