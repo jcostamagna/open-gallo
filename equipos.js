@@ -834,17 +834,102 @@ function displayTeams(team1, team2) {
   container.innerHTML = `
     <div class="section-header">
       <span class="section-title">Equipos Generados</span>
-      <span class="balance-indicator ${balanceClass}">Diferencia: ${diff.toFixed(1)} pts - ${balanceText}</span>
+      <div class="header-actions">
+        <span class="balance-indicator ${balanceClass}">Diferencia: ${diff.toFixed(1)} pts - ${balanceText}</span>
+        <button onclick="shareTeams()" class="btn-share" title="Compartir equipos">
+          <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+            <circle cx="18" cy="5" r="3"></circle>
+            <circle cx="6" cy="12" r="3"></circle>
+            <circle cx="18" cy="19" r="3"></circle>
+            <line x1="8.59" y1="13.51" x2="15.42" y2="17.49"></line>
+            <line x1="15.41" y1="6.51" x2="8.59" y2="10.49"></line>
+          </svg>
+        </button>
+      </div>
     </div>
-    <div class="teams-container">
-      ${createTeamHtml(team1, 1, sum1)}
-      ${createTeamHtml(team2, 2, sum2)}
+    <div id="teamsCapture" class="teams-capture">
+      <div class="teams-container">
+        ${createTeamHtml(team1, 1, sum1)}
+        ${createTeamHtml(team2, 2, sum2)}
+      </div>
     </div>
   `;
 
   // Scroll to results
   container.scrollIntoView({ behavior: 'smooth', block: 'start' });
 }
+
+// Share teams as image
+async function shareTeams() {
+  const captureElement = document.getElementById('teamsCapture');
+  const shareBtn = document.querySelector('.btn-share');
+
+  if (!captureElement) return;
+
+  // Show loading state
+  shareBtn.disabled = true;
+  shareBtn.innerHTML = '<span class="share-loading"></span>';
+
+  try {
+    // Capture the teams as an image
+    const canvas = await html2canvas(captureElement, {
+      backgroundColor: '#062117',
+      scale: 2, // Higher quality
+      logging: false,
+      useCORS: true
+    });
+
+    // Convert to blob
+    const blob = await new Promise(resolve => canvas.toBlob(resolve, 'image/png'));
+    const file = new File([blob], 'equipos.png', { type: 'image/png' });
+
+    // Check if Web Share API is available and supports files
+    if (navigator.share && navigator.canShare && navigator.canShare({ files: [file] })) {
+      await navigator.share({
+        files: [file],
+        title: 'Equipos Generados',
+        text: 'Equipos para el partido'
+      });
+    } else {
+      // Fallback: download the image
+      const url = canvas.toDataURL('image/png');
+      const link = document.createElement('a');
+      link.download = 'equipos.png';
+      link.href = url;
+      link.click();
+    }
+  } catch (err) {
+    if (err.name !== 'AbortError') {
+      console.error('Error sharing:', err);
+      // Fallback to download on error
+      try {
+        const canvas = await html2canvas(captureElement, {
+          backgroundColor: '#062117',
+          scale: 2,
+          logging: false
+        });
+        const url = canvas.toDataURL('image/png');
+        const link = document.createElement('a');
+        link.download = 'equipos.png';
+        link.href = url;
+        link.click();
+      } catch (downloadErr) {
+        alert('No se pudo compartir. Intenta de nuevo.');
+      }
+    }
+  } finally {
+    // Restore button
+    shareBtn.disabled = false;
+    shareBtn.innerHTML = `
+      <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+        <circle cx="18" cy="5" r="3"></circle>
+        <circle cx="6" cy="12" r="3"></circle>
+        <circle cx="18" cy="19" r="3"></circle>
+        <line x1="8.59" y1="13.51" x2="15.42" y2="17.49"></line>
+        <line x1="15.41" y1="6.51" x2="8.59" y2="10.49"></line>
+      </svg>
+    `;
+  }
 
 function generateTeams() {
   const targetSize = parseInt(document.getElementById('teamSize').value);
