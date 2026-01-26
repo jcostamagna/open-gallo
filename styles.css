@@ -831,6 +831,64 @@ input:focus, select:focus {
   color: #f87171;
 }
 
+/* Header actions for teams result */
+.header-actions {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+}
+
+/* Share button */
+.btn-share {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 36px;
+  height: 36px;
+  border-radius: 50%;
+  border: 1px solid #1a5a40;
+  background: #0a2b1d;
+  color: #8fbfae;
+  cursor: pointer;
+  transition: all 0.2s;
+}
+
+.btn-share:hover {
+  background: #1a5a40;
+  color: #fff;
+  border-color: #2a8a60;
+}
+
+.btn-share:disabled {
+  opacity: 0.7;
+  cursor: not-allowed;
+}
+
+.btn-share svg {
+  flex-shrink: 0;
+}
+
+/* Loading spinner for share button */
+.share-loading {
+  width: 18px;
+  height: 18px;
+  border: 2px solid #1a5a40;
+  border-top-color: #4ade80;
+  border-radius: 50%;
+  animation: spin 0.8s linear infinite;
+}
+
+@keyframes spin {
+  to { transform: rotate(360deg); }
+}
+
+/* Teams capture container for screenshot */
+.teams-capture {
+  padding: 16px;
+  background: #062117;
+  border-radius: 6px;
+}
+
 /* Responsive */
 @media (max-width: 600px) {
   body {
@@ -938,9 +996,28 @@ input:focus, select:focus {
 
   .balance-indicator {
     font-size: 11px;
-    width: 100%;
+    flex: 1;
     text-align: center;
+  }
+
+  .header-actions {
+    width: 100%;
     margin-top: 8px;
+  }
+
+  .btn-share {
+    width: 32px;
+    height: 32px;
+    flex-shrink: 0;
+  }
+
+  .btn-share svg {
+    width: 16px;
+    height: 16px;
+  }
+
+  .teams-capture {
+    padding: 12px;
   }
 
   /* Generate controls responsive */
