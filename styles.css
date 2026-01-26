@@ -602,6 +602,28 @@ input:focus, select:focus {
   background: #fff;
 }
 
+/* Year selector for equipos page */
+.year-selector-container {
+  display: flex;
+  align-items: center;
+}
+
+.year-selector-container select {
+  padding: 4px 8px;
+  border: 1px solid #1a5a40;
+  border-radius: 4px;
+  font-size: 11px;
+  background: #0a2b1d;
+  color: #4ade80;
+  cursor: pointer;
+  font-weight: 500;
+}
+
+.year-selector-container select:focus {
+  outline: none;
+  border-color: #2a8a60;
+}
+
 .btn-info {
   width: 24px;
   height: 24px;
@@ -951,6 +973,11 @@ input:focus, select:focus {
 
   .toggle-switch input:checked + .toggle-slider::after {
     transform: translateX(12px);
+  }
+
+  .year-selector-container select {
+    padding: 3px 6px;
+    font-size: 10px;
   }
 
   .data-toggles .btn-info {

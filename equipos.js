@@ -5,6 +5,8 @@ let playersStats = {}; // name -> { wins, total, percentage, currentYearWins, cu
 let selectedPlayers = new Set(); // Set of selected player names
 let guestPlayers = []; // { name, percentage, isGuest: true }
 let goalkeepers = new Set(); // Set of goalkeeper names
+let selectedYear = null; // The year selected for "Año Actual" calculations
+let availableYears = []; // Years available for selection
 
 // Scoring configuration
 const SCORING_CONFIG = {
@@ -12,7 +14,8 @@ const SCORING_CONFIG = {
   minMatchesForConfidence: 10,
   minCurrentYearMatches: 5,
   formWeights: [0.30, 0.25, 0.20, 0.15, 0.10], // Most recent first
-  guestConfidence: 0.6
+  guestConfidence: 0.6,
+  minMatchesForYearOption: 6 // Minimum matches needed to show a year as an option
 };
 
 // Get current scoring weights based on toggle state
@@ -93,6 +96,70 @@ function getYearFromDate(dateStr) {
   return null;
 }
 
+// Count matches per year (each row counts as one match, so double matches count as 2)
+function countMatchesPerYear(matches) {
+  const counts = {};
+  matches.forEach(match => {
+    const year = getYearFromDate(match.date);
+    if (year) {
+      counts[year] = (counts[year] || 0) + 1;
+    }
+  });
+  return counts;
+}
+
+// Determine which years should be available for selection
+function getAvailableYears(matches) {
+  const counts = countMatchesPerYear(matches);
+  const currentYearValue = getCurrentYear();
+  const minMatches = SCORING_CONFIG.minMatchesForYearOption;
+
+  const years = [];
+
+  // Always include current year if it has any matches
+  if (counts[currentYearValue] > 0) {
+    years.push(currentYearValue);
+  }
+
+  // Include previous year only if current year has fewer than minMatches
+  // AND previous year has at least minMatches
+  const currentYearMatches = counts[currentYearValue] || 0;
+  if (currentYearMatches < minMatches) {
+    const previousYear = currentYearValue - 1;
+    if (counts[previousYear] >= minMatches) {
+      years.push(previousYear);
+    }
+  }
+
+  return years.sort((a, b) => b - a); // Most recent first
+}
+
+// Render year selector
+function renderYearSelector() {
+  const container = document.getElementById('yearSelectorContainer');
+  if (!container) return;
+
+  if (availableYears.length <= 1) {
+    // Only one year available, hide selector
+    container.style.display = 'none';
+    return;
+  }
+
+  container.style.display = 'flex';
+
+  const select = document.getElementById('yearSelector');
+  select.innerHTML = availableYears.map(year =>
+    `<option value="${year}" ${year === selectedYear ? 'selected' : ''}>${year}</option>`
+  ).join('');
+}
+
+// Handle year change
+function handleYearChange(newYear) {
+  selectedYear = parseInt(newYear);
+  calculateStats();
+  renderAllLists();
+}
+
 // Use current year for display
 const currentYear = getCurrentYear();
 
@@ -116,8 +183,13 @@ fetchMatchesWithPlayers()
       };
     }).filter(Boolean);
 
+    // Determine available years and set initial selection
+    availableYears = getAvailableYears(allMatches);
+    selectedYear = availableYears.length > 0 ? availableYears[0] : currentYear;
+
     calculateStats();
     renderAllLists();
+    renderYearSelector();
     setupEventListeners();
   })
   .catch(err => {
@@ -127,6 +199,7 @@ fetchMatchesWithPlayers()
 function calculateStats() {
   playersStats = {};
   const recentGames = {}; // Track recent games for last5
+  const targetYear = selectedYear || currentYear;
 
   allMatches.forEach(match => {
     const winner = match.winner;
@@ -149,7 +222,7 @@ function calculateStats() {
       playersStats[winner].total++;
       recentGames[winner].push('W');
 
-      if (year === currentYear) {
+      if (year === targetYear) {
         playersStats[winner].currentYearWins++;
         playersStats[winner].currentYearTotal++;
       }
@@ -168,7 +241,7 @@ function calculateStats() {
       playersStats[loser].total++;
       recentGames[loser].push('L');
 
-      if (year === currentYear) {
+      if (year === targetYear) {
         playersStats[loser].currentYearTotal++;
       }
     }
@@ -363,6 +436,7 @@ function createPlayerCard(player, isSelected) {
 
   // Build stats display
   let statsHtml = '';
+  const displayYear = selectedYear || currentYear;
   if (player.isGuest) {
     statsHtml = `<span class="stats">${player.percentage}% (estimado)</span>`;
   } else {
@@ -373,7 +447,7 @@ function createPlayerCard(player, isSelected) {
       <span class="stats">
         ${player.percentage}% (${player.wins}G/${player.total}P)
         <span class="stats-separator">|</span>
-        <span class="current-year" title="Año actual">${currentYear}: ${currentYearText}</span>
+        <span class="current-year" title="Año seleccionado">${displayYear}: ${currentYearText}</span>
       </span>
     `;
   }
