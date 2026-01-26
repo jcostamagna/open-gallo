@@ -54,6 +54,9 @@
               <input type="checkbox" id="useCurrentYear" checked onchange="handleToggleChange('currentYear')">
               <span class="toggle-slider"></span>
             </label>
+            <div id="yearSelectorContainer" class="year-selector-container" style="display: none;">
+              <select id="yearSelector" onchange="handleYearChange(this.value)"></select>
+            </div>
             <label class="toggle-switch">
               <span class="toggle-text">Últimos 5</span>
               <input type="checkbox" id="useForm" checked onchange="handleToggleChange('form')">
@@ -77,10 +80,11 @@
           <p>El puntaje de cada jugador combina tres factores:</p>
           <ul>
             <li><strong>Años Anteriores</strong> - Rendimiento histórico de todos los partidos jugados</li>
-            <li><strong>Año Actual</strong> - Rendimiento del año en curso</li>
+            <li><strong>Año Actual</strong> - Rendimiento del año seleccionado</li>
             <li><strong>Últimos 5</strong> - Forma reciente basada en los últimos 5 partidos (los más recientes pesan más)</li>
           </ul>
           <p><strong>Toggles:</strong> Podés activar o desactivar cada factor. El peso se redistribuye entre los activos. Siempre debe haber al menos uno activo.</p>
+          <p><strong>Selector de Año:</strong> Si el año actual tiene menos de 6 partidos, aparece un selector para usar los datos del año anterior (si tiene 6+ partidos). Los partidos dobles cuentan como 2.</p>
           <p><strong>Factor de Confianza:</strong> Jugadores con pocos partidos tienen su puntaje ajustado hacia el promedio del grupo.</p>
           <p><strong>Jugadores Invitados:</strong> Su porcentaje estimado se escala al rango del grupo (0% = peor jugador, 50% = promedio, 100% = mejor).</p>
           <p><strong>Arqueros:</strong> Si hay 2 arqueros, se asignan a equipos diferentes.</p>
