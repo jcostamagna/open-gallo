@@ -96,15 +96,38 @@ function getYearFromDate(dateStr) {
   return null;
 }
 
-// Count matches per year (each row counts as one match, so double matches count as 2)
+// Count match dates per year
+// Groups entries by date, then determines if it's a single or double match
+// Double matches have roughly 2x the normal number of player entries
 function countMatchesPerYear(matches) {
-  const counts = {};
+  const entriesByDate = {};
+
+  // Group entries by date
   matches.forEach(match => {
-    const year = getYearFromDate(match.date);
-    if (year) {
-      counts[year] = (counts[year] || 0) + 1;
+    if (match.date) {
+      entriesByDate[match.date] = (entriesByDate[match.date] || 0) + 1;
     }
   });
+
+  // Calculate median entries per date to determine "normal" match size
+  const entryCounts = Object.values(entriesByDate);
+  if (entryCounts.length === 0) return {};
+
+  entryCounts.sort((a, b) => a - b);
+  const median = entryCounts[Math.floor(entryCounts.length / 2)];
+  const doubleThreshold = median * 1.5; // If entries > 1.5x median, it's a double match
+
+  // Count matches per year
+  const counts = {};
+  Object.entries(entriesByDate).forEach(([date, entries]) => {
+    const year = getYearFromDate(date);
+    if (year) {
+      // Double match if significantly more entries than normal
+      const matchValue = entries > doubleThreshold ? 2 : 1;
+      counts[year] = (counts[year] || 0) + matchValue;
+    }
+  });
+
   return counts;
 }
 
