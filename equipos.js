@@ -930,6 +930,7 @@ async function shareTeams() {
       </svg>
     `;
   }
+}
 
 function generateTeams() {
   const targetSize = parseInt(document.getElementById('teamSize').value);
