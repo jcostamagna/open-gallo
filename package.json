@@ -1,0 +1,14 @@
+{
+  "name": "open-gallo",
+  "version": "1.1.0",
+  "description": "Football match tracker and team generator",
+  "scripts": {
+    "test": "playwright test",
+    "test:headed": "playwright test --headed",
+    "serve": "serve -l 8080 ."
+  },
+  "devDependencies": {
+    "@playwright/test": "^1.40.0",
+    "serve": "^14.2.0"
+  }
+}
