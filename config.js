@@ -90,7 +90,7 @@ function parseCSV(csvText) {
   return data;
 }
 
-// Parse a single CSV line (handles quoted values with commas)
+// Parse a single CSV line (handles quoted values with commas and escaped quotes)
 function parseCSVLine(line) {
   const result = [];
   let current = '';
@@ -100,7 +100,13 @@ function parseCSVLine(line) {
     const char = line[i];
 
     if (char === '"') {
-      inQuotes = !inQuotes;
+      // Check for escaped quote ("" inside quoted string)
+      if (inQuotes && line[i + 1] === '"') {
+        current += '"';
+        i++; // Skip next quote
+      } else {
+        inQuotes = !inQuotes;
+      }
     } else if (char === ',' && !inQuotes) {
       result.push(current.trim());
       current = '';
