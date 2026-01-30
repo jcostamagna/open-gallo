@@ -42,15 +42,30 @@ function getCurrentSheet() {
   return SHEETS[CURRENT_GROUP];
 }
 
-// CORS proxy to bypass browser restrictions
-const CORS_PROXY = 'https://corsproxy.io/?';
+// Google Apps Script URL (primary - most reliable)
+const APPS_SCRIPT_URL = 'https://script.google.com/macros/s/AKfycbyxEOLozRNaA8D57bfSeKLVnQNF8xcdEnuwuGFeOtLLuLAyWLmtoenWKHeNZuQUjGLN/exec';
 
-// Build Google Sheets CSV export URL (with CORS proxy)
+// CORS proxies as fallback (in case Apps Script has issues)
+const CORS_PROXIES = [
+  'https://api.allorigins.win/raw?url=',
+  'https://corsproxy.io/?'
+];
+
+// Build Google Apps Script URL
+function buildAppsScriptUrl(sheetId, gid = 0) {
+  return `${APPS_SCRIPT_URL}?sheetId=${sheetId}&gid=${gid}`;
+}
+
+// Build Google Sheets CSV export URL (for fallback)
 function buildSheetUrl(sheetId, gid = 0) {
-  // Add cache-busting parameter (changes every minute)
   const cacheBust = Math.floor(Date.now() / 60000);
-  const sheetUrl = `https://docs.google.com/spreadsheets/d/${sheetId}/export?format=csv&gid=${gid}&_=${cacheBust}`;
-  return CORS_PROXY + encodeURIComponent(sheetUrl);
+  return `https://docs.google.com/spreadsheets/d/${sheetId}/export?format=csv&gid=${gid}&_=${cacheBust}`;
+}
+
+// Build proxied URL
+function buildProxiedUrl(url, proxyIndex = 0) {
+  const proxy = CORS_PROXIES[proxyIndex];
+  return proxy + encodeURIComponent(url);
 }
 
 // Parse CSV text to array of objects
@@ -98,12 +113,118 @@ function parseCSVLine(line) {
   return result;
 }
 
-// Fetch data from a Google Sheet
+// Log fetch errors
+function logFetchError(error, source, url) {
+  console.error(`[Data Fetch Error] Source: ${source}, URL: ${url}, Error:`, error);
+}
+
+// Show user-visible error alert
+function showDataError(message) {
+  // Remove existing error banner if any
+  const existing = document.getElementById('data-error-banner');
+  if (existing) existing.remove();
+
+  const banner = document.createElement('div');
+  banner.id = 'data-error-banner';
+  banner.style.cssText = `
+    position: fixed;
+    top: 0;
+    left: 0;
+    right: 0;
+    background: #dc3545;
+    color: white;
+    padding: 12px 20px;
+    text-align: center;
+    z-index: 10000;
+    font-weight: 500;
+    box-shadow: 0 2px 10px rgba(0,0,0,0.3);
+  `;
+  banner.innerHTML = `
+    ⚠️ ${message}
+    <button onclick="this.parentElement.remove()" style="
+      margin-left: 20px;
+      background: transparent;
+      border: 1px solid white;
+      color: white;
+      padding: 4px 12px;
+      cursor: pointer;
+      border-radius: 4px;
+    ">Cerrar</button>
+  `;
+  document.body.prepend(banner);
+}
+
+// Validate CSV response
+function isValidCSV(text) {
+  return text && !text.includes('<!DOCTYPE') && !text.includes('<html') && !text.includes('Invalid sheet');
+}
+
+// Fetch data from a Google Sheet (Apps Script primary, CORS proxies fallback)
 async function fetchSheetData(sheetId, gid = 0) {
-  const url = buildSheetUrl(sheetId, gid);
-  const response = await fetch(url);
-  const csvText = await response.text();
-  return parseCSV(csvText);
+  let lastError = null;
+
+  // Try Google Apps Script first (most reliable)
+  try {
+    const appsScriptUrl = buildAppsScriptUrl(sheetId, gid);
+    console.log('[Data Fetch] Trying Google Apps Script...');
+
+    const response = await fetch(appsScriptUrl);
+
+    if (response.ok) {
+      const csvText = await response.text();
+
+      if (isValidCSV(csvText)) {
+        console.log('[Data Fetch] Success with Google Apps Script');
+        return parseCSV(csvText);
+      }
+      logFetchError('Invalid response format', 'Apps Script', appsScriptUrl);
+    } else {
+      logFetchError(`HTTP ${response.status}`, 'Apps Script', appsScriptUrl);
+    }
+  } catch (error) {
+    logFetchError(error, 'Apps Script', APPS_SCRIPT_URL);
+    lastError = error;
+  }
+
+  // Fallback to CORS proxies
+  const baseUrl = buildSheetUrl(sheetId, gid);
+
+  for (let i = 0; i < CORS_PROXIES.length; i++) {
+    const proxiedUrl = buildProxiedUrl(baseUrl, i);
+
+    try {
+      console.log(`[Data Fetch] Trying fallback proxy ${i + 1}/${CORS_PROXIES.length}: ${CORS_PROXIES[i]}`);
+
+      const response = await fetch(proxiedUrl);
+
+      if (!response.ok) {
+        const errorMsg = `HTTP ${response.status} ${response.statusText}`;
+        logFetchError(errorMsg, CORS_PROXIES[i], baseUrl);
+        lastError = new Error(errorMsg);
+        continue;
+      }
+
+      const csvText = await response.text();
+
+      if (!isValidCSV(csvText)) {
+        logFetchError('Received HTML instead of CSV', CORS_PROXIES[i], baseUrl);
+        lastError = new Error('Invalid response format');
+        continue;
+      }
+
+      console.log(`[Data Fetch] Success with fallback proxy ${i + 1}`);
+      return parseCSV(csvText);
+
+    } catch (error) {
+      logFetchError(error, CORS_PROXIES[i], baseUrl);
+      lastError = error;
+    }
+  }
+
+  // All methods failed
+  console.error('[Data Fetch] All methods failed. Last error:', lastError);
+  showDataError('No se pudieron cargar los datos. Por favor, recarga la página o intenta más tarde.');
+  throw lastError || new Error('All data fetch methods failed');
 }
 
 // Auto-detect column names from headers
