@@ -1,0 +1,323 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Tests - Open Gallo</title>
+  <style>
+    body {
+      font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+      max-width: 800px;
+      margin: 40px auto;
+      padding: 20px;
+      background: #1a1a2e;
+      color: #eee;
+    }
+    h1 { color: #4ade80; }
+    .test-suite { margin: 20px 0; padding: 15px; background: #16213e; border-radius: 8px; }
+    .test-suite h2 { margin-top: 0; color: #60a5fa; font-size: 1.1rem; }
+    .test { padding: 8px 12px; margin: 5px 0; border-radius: 4px; }
+    .test.pass { background: #064e3b; color: #34d399; }
+    .test.fail { background: #7f1d1d; color: #fca5a5; }
+    .summary { margin-top: 30px; padding: 20px; background: #16213e; border-radius: 8px; font-size: 1.2rem; }
+    .summary.all-pass { border: 2px solid #4ade80; }
+    .summary.has-fail { border: 2px solid #ef4444; }
+    pre { background: #0f0f1a; padding: 10px; border-radius: 4px; overflow-x: auto; font-size: 0.85rem; }
+  </style>
+</head>
+<body>
+  <h1>Open Gallo - Tests</h1>
+  <p style="color: #888;">Unit tests run immediately. Live API tests fetch from Google Apps Script.</p>
+  <div id="results"></div>
+  <div id="summary"></div>
+
+  <!-- Load the app's config (contains functions to test) -->
+  <script src="config.js"></script>
+
+  <script>
+    // Simple test framework
+    const results = [];
+
+    function test(name, fn) {
+      try {
+        fn();
+        results.push({ name, pass: true });
+      } catch (error) {
+        results.push({ name, pass: false, error: error.message });
+      }
+    }
+
+    function assertEqual(actual, expected, message = '') {
+      if (actual !== expected) {
+        throw new Error(`${message}\nExpected: ${JSON.stringify(expected)}\nActual: ${JSON.stringify(actual)}`);
+      }
+    }
+
+    function assertDeepEqual(actual, expected, message = '') {
+      if (JSON.stringify(actual) !== JSON.stringify(expected)) {
+        throw new Error(`${message}\nExpected: ${JSON.stringify(expected, null, 2)}\nActual: ${JSON.stringify(actual, null, 2)}`);
+      }
+    }
+
+    function assertTrue(value, message = '') {
+      if (!value) {
+        throw new Error(message || `Expected truthy value, got: ${value}`);
+      }
+    }
+
+    // ============================================
+    // CSV PARSING TESTS
+    // ============================================
+
+    test('parseCSVLine: simple values', () => {
+      const result = parseCSVLine('a,b,c');
+      assertDeepEqual(result, ['a', 'b', 'c']);
+    });
+
+    test('parseCSVLine: values with spaces', () => {
+      const result = parseCSVLine('  hello , world  , test  ');
+      assertDeepEqual(result, ['hello', 'world', 'test']);
+    });
+
+    test('parseCSVLine: quoted values with commas', () => {
+      const result = parseCSVLine('name,"value, with comma",other');
+      assertDeepEqual(result, ['name', 'value, with comma', 'other']);
+    });
+
+    test('parseCSVLine: quoted values with quotes inside', () => {
+      const result = parseCSVLine('name,"say ""hello""",other');
+      assertDeepEqual(result, ['name', 'say "hello"', 'other']);
+    });
+
+    test('parseCSV: full CSV parsing', () => {
+      const csv = 'Name,Score\nAlice,100\nBob,200';
+      const result = parseCSV(csv);
+      assertDeepEqual(result, [
+        { Name: 'Alice', Score: '100' },
+        { Name: 'Bob', Score: '200' }
+      ]);
+    });
+
+    test('parseCSV: empty CSV returns empty array', () => {
+      const result = parseCSV('');
+      assertDeepEqual(result, []);
+    });
+
+    // ============================================
+    // DATE FORMAT TESTS
+    // ============================================
+
+    test('Date format: DD/MM/YYYY is correctly parsed', () => {
+      // Simulating a properly formatted date from Apps Script
+      const dateStr = '08/01/2026';
+      const parts = dateStr.split('/');
+      assertEqual(parts.length, 3, 'Date should have 3 parts');
+      assertEqual(parts[0], '08', 'Day should be 08');
+      assertEqual(parts[1], '01', 'Month should be 01');
+      assertEqual(parts[2], '2026', 'Year should be 2026');
+    });
+
+    test('Date format: Detects invalid date format (full Date string)', () => {
+      const badDate = 'Thu Jan 08 2026 00:00:00 GMT-0300';
+      const parts = badDate.split('/');
+      assertTrue(parts.length !== 3, 'Full date string should NOT have 3 parts when split by /');
+    });
+
+    test('Date format: Valid DD/MM/YYYY regex', () => {
+      const validDate = '08/01/2026';
+      const invalidDate = 'Thu Jan 08 2026 00:00:00 GMT-0300';
+      const dateRegex = /^\d{1,2}\/\d{1,2}\/\d{4}$/;
+
+      assertTrue(dateRegex.test(validDate), 'Valid date should match regex');
+      assertTrue(!dateRegex.test(invalidDate), 'Invalid date should NOT match regex');
+    });
+
+    // ============================================
+    // CSV VALIDATION TESTS
+    // ============================================
+
+    test('isValidCSV: accepts valid CSV', () => {
+      assertTrue(isValidCSV('Name,Score\nAlice,100'));
+    });
+
+    test('isValidCSV: rejects HTML', () => {
+      assertTrue(!isValidCSV('<!DOCTYPE html><html>'));
+    });
+
+    test('isValidCSV: rejects empty string', () => {
+      assertTrue(!isValidCSV(''));
+    });
+
+    test('isValidCSV: rejects null', () => {
+      assertTrue(!isValidCSV(null));
+    });
+
+    test('isValidCSV: rejects "Invalid sheet" message', () => {
+      assertTrue(!isValidCSV('Invalid sheet ID'));
+    });
+
+    // ============================================
+    // URL BUILDING TESTS
+    // ============================================
+
+    test('buildAppsScriptUrl: builds correct URL', () => {
+      const url = buildAppsScriptUrl('test-sheet-id', 123);
+      assertTrue(url.includes('test-sheet-id'), 'URL should contain sheet ID');
+      assertTrue(url.includes('gid=123'), 'URL should contain gid parameter');
+      assertTrue(url.startsWith(APPS_SCRIPT_URL), 'URL should start with Apps Script URL');
+    });
+
+    test('buildSheetUrl: builds correct Google Sheets URL', () => {
+      const url = buildSheetUrl('test-sheet-id', 456);
+      assertTrue(url.includes('test-sheet-id'), 'URL should contain sheet ID');
+      assertTrue(url.includes('gid=456'), 'URL should contain gid parameter');
+      assertTrue(url.includes('export?format=csv'), 'URL should request CSV format');
+    });
+
+    // ============================================
+    // COLUMN DETECTION TESTS
+    // ============================================
+
+    test('detectColumns: detects Spanish column names', () => {
+      const headers = ['Fecha', 'Equipo Ganador', 'Equipo Perdedor'];
+      const result = detectColumns(headers);
+      assertEqual(result.date, 'Fecha');
+      assertEqual(result.winner, 'Equipo Ganador');
+      assertEqual(result.loser, 'Equipo Perdedor');
+    });
+
+    test('detectColumns: detects English column names', () => {
+      const headers = ['Date', 'Winner', 'Loser'];
+      const result = detectColumns(headers);
+      assertEqual(result.date, 'Date');
+      assertEqual(result.winner, 'Winner');
+      assertEqual(result.loser, 'Loser');
+    });
+
+    test('detectColumns: handles partial matches', () => {
+      const headers = ['Match Date', 'Winning Team', 'Losing Team'];
+      const result = detectColumns(headers);
+      assertEqual(result.date, 'Match Date');
+      assertEqual(result.winner, 'Winning Team');
+      assertEqual(result.loser, 'Losing Team');
+    });
+
+    // ============================================
+    // LIVE API TESTS (async)
+    // ============================================
+
+    async function runLiveTests() {
+      const dateRegex = /^\d{1,2}\/\d{1,2}\/\d{4}$/;
+
+      // Test: Fetch data from Apps Script
+      try {
+        const sheet = getCurrentSheet();
+        const url = buildAppsScriptUrl(sheet.id, sheet.matchesGid);
+        console.log('Fetching from:', url);
+
+        const response = await fetch(url);
+        const csvText = await response.text();
+
+        // Test: Response is valid CSV
+        if (isValidCSV(csvText)) {
+          results.push({ name: 'Live API: Returns valid CSV', pass: true });
+        } else {
+          results.push({ name: 'Live API: Returns valid CSV', pass: false, error: 'Response is not valid CSV:\n' + csvText.substring(0, 200) });
+        }
+
+        // Parse and check dates
+        const data = parseCSV(csvText);
+
+        if (data.length > 0) {
+          results.push({ name: 'Live API: Returns data rows', pass: true });
+
+          // Check date format in first row with a date
+          const columns = detectColumns(Object.keys(data[0]));
+          let foundValidDate = false;
+          let foundInvalidDate = null;
+
+          for (const row of data) {
+            const dateValue = row[columns.date];
+            if (dateValue && dateValue.trim()) {
+              if (dateRegex.test(dateValue.trim())) {
+                foundValidDate = true;
+              } else {
+                foundInvalidDate = dateValue;
+                break;
+              }
+            }
+          }
+
+          if (foundInvalidDate) {
+            results.push({
+              name: 'Live API: Dates are in DD/MM/YYYY format',
+              pass: false,
+              error: `Found invalid date format: "${foundInvalidDate}"\nExpected format: DD/MM/YYYY (e.g., 08/01/2026)`
+            });
+          } else if (foundValidDate) {
+            results.push({ name: 'Live API: Dates are in DD/MM/YYYY format', pass: true });
+          } else {
+            results.push({ name: 'Live API: Dates are in DD/MM/YYYY format', pass: false, error: 'No dates found in data' });
+          }
+
+        } else {
+          results.push({ name: 'Live API: Returns data rows', pass: false, error: 'No data rows returned' });
+        }
+
+      } catch (error) {
+        results.push({ name: 'Live API: Fetch succeeds', pass: false, error: error.message });
+      }
+
+      renderResults();
+    }
+
+    // ============================================
+    // RENDER RESULTS
+    // ============================================
+
+    function renderResults() {
+      const container = document.getElementById('results');
+      const summary = document.getElementById('summary');
+
+      // Group by test suite (based on test name prefix)
+      const suites = {};
+      results.forEach(r => {
+        const suiteName = r.name.split(':')[0] || 'General';
+        if (!suites[suiteName]) suites[suiteName] = [];
+        suites[suiteName].push(r);
+      });
+
+      let html = '';
+      for (const [suiteName, tests] of Object.entries(suites)) {
+        html += `<div class="test-suite"><h2>${suiteName}</h2>`;
+        tests.forEach(t => {
+          const status = t.pass ? 'pass' : 'fail';
+          const icon = t.pass ? '✓' : '✗';
+          html += `<div class="test ${status}">${icon} ${t.name}`;
+          if (!t.pass) {
+            html += `<pre>${t.error}</pre>`;
+          }
+          html += `</div>`;
+        });
+        html += `</div>`;
+      }
+      container.innerHTML = html;
+
+      // Summary
+      const passed = results.filter(r => r.pass).length;
+      const failed = results.filter(r => !r.pass).length;
+      const allPass = failed === 0;
+
+      summary.className = `summary ${allPass ? 'all-pass' : 'has-fail'}`;
+      summary.innerHTML = `
+        <strong>${allPass ? '✓ All tests passed!' : '✗ Some tests failed'}</strong><br>
+        Passed: ${passed} | Failed: ${failed} | Total: ${results.length}
+      `;
+    }
+
+    // Run sync tests first, then live tests
+    renderResults();
+    runLiveTests();
+  </script>
+</body>
+</html>
