@@ -99,46 +99,54 @@ function renderMatches(filterYear = null) {
   });
 }
 
+function initPartidos(matchesData) {
+  // Process matches - carry forward dates for rows without dates
+  let lastDate = null;
+  allMatches = matchesData
+    .map(match => {
+      const date = match['Fecha']?.trim();
+      const winner = match['Equipo Ganador']?.trim();
+      const loser = match['Equipo Perdedor']?.trim();
+
+      // Use last known date if this row doesn't have one
+      if (date) lastDate = date;
+
+      // Skip empty matches
+      if (!winner && !loser) return null;
+
+      return {
+        date: lastDate || 'Sin fecha',
+        winner,
+        loser
+      };
+    })
+    .filter(Boolean);
+
+  // Get available years and set default to latest
+  const availableYears = getAvailableYears(allMatches);
+  const defaultYear = availableYears.length > 0 ? availableYears[0] : null;
+
+  // Populate year filter
+  populateYearFilter(availableYears, defaultYear);
+
+  // Initial render with default year
+  renderMatches(defaultYear);
+}
+
 // Fetch and display matches grouped by date (filtered by valid players)
 fetchMatchesWithPlayers()
   .then(matchesData => {
-    // Process matches - carry forward dates for rows without dates
-    let lastDate = null;
-    allMatches = matchesData
-      .map(match => {
-        const date = match['Fecha']?.trim();
-        const winner = match['Equipo Ganador']?.trim();
-        const loser = match['Equipo Perdedor']?.trim();
+    initPartidos(matchesData);
 
-        // Use last known date if this row doesn't have one
-        if (date) lastDate = date;
-
-        // Skip empty matches
-        if (!winner && !loser) return null;
-
-        return {
-          date: lastDate || 'Sin fecha',
-          winner,
-          loser
-        };
-      })
-      .filter(Boolean);
-
-    // Get available years and set default to latest
-    const availableYears = getAvailableYears(allMatches);
-    const defaultYear = availableYears.length > 0 ? availableYears[0] : null;
-
-    // Populate year filter
-    populateYearFilter(availableYears, defaultYear);
-
-    // Add event listener
     document.getElementById('yearFilter').addEventListener('change', () => {
       const selectedYear = document.getElementById('yearFilter').value || null;
       renderMatches(selectedYear);
     });
 
-    // Initial render with default year
-    renderMatches(defaultYear);
+    // Re-render when background refresh completes
+    onDataRefreshed = () => {
+      fetchMatchesWithPlayers().then(freshData => initPartidos(freshData));
+    };
   })
   .catch(err => {
     console.error('Error fetching data:', err);
