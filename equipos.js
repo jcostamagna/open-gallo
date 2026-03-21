@@ -186,34 +186,43 @@ function handleYearChange(newYear) {
 // Use current year for display
 const currentYear = getCurrentYear();
 
+function initEquipos(data) {
+  // Process matches - carry forward dates
+  let lastDate = null;
+  allMatches = data.map(row => {
+    if (row['Fecha']) {
+      lastDate = row['Fecha'];
+    }
+    const winner = row['Equipo Ganador']?.trim();
+    const loser = row['Equipo Perdedor']?.trim();
+
+    if (!winner && !loser) return null;
+
+    return {
+      date: lastDate,
+      winner,
+      loser
+    };
+  }).filter(Boolean);
+
+  // Determine available years and set initial selection
+  availableYears = getAvailableYears(allMatches);
+  selectedYear = availableYears.length > 0 ? availableYears[0] : currentYear;
+
+  calculateStats();
+  renderAllLists();
+  renderYearSelector();
+}
+
 fetchMatchesWithPlayers()
   .then(data => {
-    // Process matches - carry forward dates
-    let lastDate = null;
-    allMatches = data.map(row => {
-      if (row['Fecha']) {
-        lastDate = row['Fecha'];
-      }
-      const winner = row['Equipo Ganador']?.trim();
-      const loser = row['Equipo Perdedor']?.trim();
-
-      if (!winner && !loser) return null;
-
-      return {
-        date: lastDate,
-        winner,
-        loser
-      };
-    }).filter(Boolean);
-
-    // Determine available years and set initial selection
-    availableYears = getAvailableYears(allMatches);
-    selectedYear = availableYears.length > 0 ? availableYears[0] : currentYear;
-
-    calculateStats();
-    renderAllLists();
-    renderYearSelector();
+    initEquipos(data);
     setupEventListeners();
+
+    // Re-render when background refresh completes
+    onDataRefreshed = () => {
+      fetchMatchesWithPlayers().then(freshData => initEquipos(freshData));
+    };
   })
   .catch(err => {
     console.error('Error fetching data:', err);

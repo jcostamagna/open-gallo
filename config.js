@@ -159,8 +159,42 @@ function isValidCSV(text) {
   return text && !text.includes('<!DOCTYPE') && !text.includes('<html') && !text.includes('Invalid sheet');
 }
 
-// Fetch data from a Google Sheet (Apps Script primary, CORS proxies fallback)
-async function fetchSheetData(sheetId, gid = 0) {
+// Cache configuration
+const CACHE_TTL_MS = 60 * 1000; // 1 minute
+
+// Global refresh callback - pages can set this to re-render when fresh data arrives
+let onDataRefreshed = null;
+
+function getCacheKey(sheetId, gid) {
+  return `sheet_${sheetId}_${gid}`;
+}
+
+function getCachedData(sheetId, gid) {
+  try {
+    const key = getCacheKey(sheetId, gid);
+    const cached = localStorage.getItem(key);
+    if (!cached) return null;
+
+    const { data, timestamp } = JSON.parse(cached);
+    const isStale = Date.now() - timestamp > CACHE_TTL_MS;
+    console.log(`[Cache] ${isStale ? 'Stale' : 'Fresh'} hit for ${key}`);
+    return { data, isStale };
+  } catch {
+    return null;
+  }
+}
+
+function setCachedData(sheetId, gid, data) {
+  try {
+    const key = getCacheKey(sheetId, gid);
+    localStorage.setItem(key, JSON.stringify({ data, timestamp: Date.now() }));
+  } catch {
+    // localStorage full or unavailable, ignore
+  }
+}
+
+// Fetch fresh data from network (no cache logic)
+async function fetchSheetDataFromNetwork(sheetId, gid = 0) {
   let lastError = null;
 
   // Try Google Apps Script first (most reliable)
@@ -175,7 +209,9 @@ async function fetchSheetData(sheetId, gid = 0) {
 
       if (isValidCSV(csvText)) {
         console.log('[Data Fetch] Success with Google Apps Script');
-        return parseCSV(csvText);
+        const parsed = parseCSV(csvText);
+        setCachedData(sheetId, gid, parsed);
+        return parsed;
       }
       logFetchError('Invalid response format', 'Apps Script', appsScriptUrl);
     } else {
@@ -213,7 +249,9 @@ async function fetchSheetData(sheetId, gid = 0) {
       }
 
       console.log(`[Data Fetch] Success with fallback proxy ${i + 1}`);
-      return parseCSV(csvText);
+      const parsed = parseCSV(csvText);
+      setCachedData(sheetId, gid, parsed);
+      return parsed;
 
     } catch (error) {
       logFetchError(error, CORS_PROXIES[i], baseUrl);
@@ -223,8 +261,39 @@ async function fetchSheetData(sheetId, gid = 0) {
 
   // All methods failed
   console.error('[Data Fetch] All methods failed. Last error:', lastError);
-  showDataError('No se pudieron cargar los datos. Por favor, recarga la página o intenta más tarde.');
   throw lastError || new Error('All data fetch methods failed');
+}
+
+// Fetch data with stale-while-revalidate caching
+async function fetchSheetData(sheetId, gid = 0) {
+  const cached = getCachedData(sheetId, gid);
+
+  if (cached && !cached.isStale) {
+    // Fresh cache, use directly
+    return cached.data;
+  }
+
+  if (cached && cached.isStale) {
+    // Stale cache: return it immediately, refresh in background
+    fetchSheetDataFromNetwork(sheetId, gid)
+      .then(freshData => {
+        if (onDataRefreshed) {
+          console.log('[Cache] Background refresh complete, triggering re-render');
+          onDataRefreshed();
+        }
+      })
+      .catch(err => console.warn('[Cache] Background refresh failed, using stale data:', err));
+    return cached.data;
+  }
+
+  // No cache at all, must fetch and wait
+  try {
+    const data = await fetchSheetDataFromNetwork(sheetId, gid);
+    return data;
+  } catch (error) {
+    showDataError('No se pudieron cargar los datos. Por favor, recarga la página o intenta más tarde.');
+    throw error;
+  }
 }
 
 // Auto-detect column names from headers

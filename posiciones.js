@@ -75,9 +75,13 @@ function populateMinMatchesFilter(maxMatches, defaultValue) {
   const select = document.getElementById('minMatches');
   select.innerHTML = '';
 
-  // Generate options: 0, 5, 10, 15, ... up to a reasonable max
+  // Generate options: 0, 1, 2, 3, 4, 5, then multiples of 5 up to a reasonable max
   const maxOption = Math.min(maxMatches, 50); // Cap at 50 for UI sanity
-  for (let i = 0; i <= maxOption; i += 5) {
+  const values = [0, 1, 2, 3, 4, 5];
+  for (let i = 10; i <= maxOption; i += 5) {
+    values.push(i);
+  }
+  values.filter(v => v <= maxOption).forEach(i => {
     const option = document.createElement('option');
     option.value = i;
     option.textContent = i;
@@ -85,7 +89,7 @@ function populateMinMatchesFilter(maxMatches, defaultValue) {
       option.selected = true;
     }
     select.appendChild(option);
-  }
+  });
 }
 
 function updateLeaderboardFromFilters() {
@@ -94,38 +98,45 @@ function updateLeaderboardFromFilters() {
   renderLeaderboard(year, minMatches);
 }
 
+function initPosiciones(matchesData) {
+  // Process matches - carry forward dates for rows without dates
+  let lastDate = null;
+  allMatches = matchesData.map(row => {
+    if (row['Fecha']) {
+      lastDate = row['Fecha'];
+    }
+    const winner = row['Equipo Ganador']?.trim();
+    const loser = row['Equipo Perdedor']?.trim();
+
+    if (!winner && !loser) return null;
+
+    return {
+      'Fecha': lastDate,
+      'Equipo Ganador': winner,
+      'Equipo Perdedor': loser
+    };
+  }).filter(Boolean);
+
+  // Get available years and set default to latest
+  const availableYears = getAvailableYears(allMatches);
+  const defaultYear = availableYears.length > 0 ? availableYears[0] : null;
+
+  // Calculate smart default for min matches based on the default year
+  const maxMatches = getMaxMatchesPlayed(allMatches, defaultYear);
+  const defaultMinMatches = getSmartMinMatchesDefault(maxMatches);
+
+  // Populate filters
+  populateYearFilter(availableYears, defaultYear);
+  populateMinMatchesFilter(maxMatches, defaultMinMatches);
+
+  // Initial render
+  renderLeaderboard(defaultYear, defaultMinMatches);
+}
+
 // Fetch matches and render leaderboard (filtered by valid players)
 fetchMatchesWithPlayers()
   .then(matchesData => {
-    // Process matches - carry forward dates for rows without dates
-    let lastDate = null;
-    allMatches = matchesData.map(row => {
-      if (row['Fecha']) {
-        lastDate = row['Fecha'];
-      }
-      const winner = row['Equipo Ganador']?.trim();
-      const loser = row['Equipo Perdedor']?.trim();
-
-      if (!winner && !loser) return null;
-
-      return {
-        'Fecha': lastDate,
-        'Equipo Ganador': winner,
-        'Equipo Perdedor': loser
-      };
-    }).filter(Boolean);
-
-    // Get available years and set default to latest
-    const availableYears = getAvailableYears(allMatches);
-    const defaultYear = availableYears.length > 0 ? availableYears[0] : null;
-
-    // Calculate smart default for min matches based on the default year
-    const maxMatches = getMaxMatchesPlayed(allMatches, defaultYear);
-    const defaultMinMatches = getSmartMinMatchesDefault(maxMatches);
-
-    // Populate filters
-    populateYearFilter(availableYears, defaultYear);
-    populateMinMatchesFilter(maxMatches, defaultMinMatches);
+    initPosiciones(matchesData);
 
     // Add event listeners after populating
     document.getElementById('minMatches').addEventListener('change', updateLeaderboardFromFilters);
@@ -138,8 +149,10 @@ fetchMatchesWithPlayers()
       updateLeaderboardFromFilters();
     });
 
-    // Initial render
-    renderLeaderboard(defaultYear, defaultMinMatches);
+    // Re-render when background refresh completes
+    onDataRefreshed = () => {
+      fetchMatchesWithPlayers().then(freshData => initPosiciones(freshData));
+    };
   })
   .catch(err => {
     console.error('Error fetching data:', err);
