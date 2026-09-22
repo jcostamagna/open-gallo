@@ -134,6 +134,7 @@ function initPosiciones(matchesData) {
 }
 
 // Fetch matches and render leaderboard (filtered by valid players)
+showDataLoading(document.getElementById('leaderboardTableBody'));
 fetchMatchesWithPlayers()
   .then(matchesData => {
     initPosiciones(matchesData);
@@ -155,6 +156,7 @@ fetchMatchesWithPlayers()
     };
   })
   .catch(err => {
+    hideDataLoading();
     console.error('Error fetching data:', err);
   });
 

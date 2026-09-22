@@ -125,6 +125,23 @@ function logFetchError(error, source, url) {
 }
 
 // Show user-visible error alert
+// Show a loading indicator inside a container while the first fetch runs.
+// Rendering the real content replaces it; hideDataLoading() removes it on error.
+function showDataLoading(container) {
+  if (!container) return;
+  const isTableBody = container.tagName === 'TBODY';
+  const wrapper = document.createElement(isTableBody ? 'tr' : 'div');
+  wrapper.className = 'data-loading';
+  wrapper.innerHTML = isTableBody
+    ? '<td colspan="100"><span class="data-loading-spinner"></span>Cargando datos...</td>'
+    : '<span class="data-loading-spinner"></span>Cargando datos...';
+  container.appendChild(wrapper);
+}
+
+function hideDataLoading() {
+  document.querySelectorAll('.data-loading').forEach(el => el.remove());
+}
+
 function showDataError(message) {
   // Remove existing error banner if any
   const existing = document.getElementById('data-error-banner');

@@ -214,6 +214,7 @@ function initEquipos(data) {
   renderYearSelector();
 }
 
+showDataLoading(document.getElementById('availablePlayersList'));
 fetchMatchesWithPlayers()
   .then(data => {
     initEquipos(data);
@@ -225,6 +226,7 @@ fetchMatchesWithPlayers()
     };
   })
   .catch(err => {
+    hideDataLoading();
     console.error('Error fetching data:', err);
   });
 

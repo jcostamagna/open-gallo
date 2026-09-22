@@ -134,6 +134,7 @@ function initPartidos(matchesData) {
 }
 
 // Fetch and display matches grouped by date (filtered by valid players)
+showDataLoading(document.getElementById('matchesContainer'));
 fetchMatchesWithPlayers()
   .then(matchesData => {
     initPartidos(matchesData);
@@ -149,5 +150,6 @@ fetchMatchesWithPlayers()
     };
   })
   .catch(err => {
+    hideDataLoading();
     console.error('Error fetching data:', err);
   });
