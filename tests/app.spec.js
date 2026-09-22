@@ -67,15 +67,38 @@ test.describe('Open Gallo Tests', () => {
   });
 
   test('equipos page loads and shows player list', async ({ page }) => {
+    // The real data comes from a Google Apps Script endpoint that is slow and
+    // intermittently stalls on its redirect, which made this test flaky.
+    // Serve fixture CSVs instead so the test only checks the page itself.
+    // Live fetching is covered by the "LIVE API TESTS" in tests.html.
+    const matchesCsv = [
+      'Fecha,Equipo Ganador,Equipo Perdedor,',
+      '31/07/2025,Mati,Alejo,',
+      ',Chiqui,Trapa,',
+      '07/08/2025,Trapa,Mati,',
+      ',Alejo,Chiqui,',
+    ].join('\n');
+    const playersCsv = [
+      'Jugador,Jugados,Ganados,% Ganados',
+      'Alejo,2,1,0.5',
+      'Mati,2,1,0.5',
+      'Trapa,2,1,0.5',
+      'Chiqui,2,1,0.5',
+    ].join('\n');
+
+    await page.route('**/script.google.com/**', route => {
+      const gid = new URL(route.request().url()).searchParams.get('gid');
+      // gid 0 is the matches tab, anything else is the players tab
+      const body = gid === '0' ? matchesCsv : playersCsv;
+      route.fulfill({ status: 200, contentType: 'text/csv', body });
+    });
+
     await page.goto('/equipos.html');
 
-    // Wait for players to load
-    await page.waitForSelector('#availablePlayersList', { timeout: 10000 });
+    await page.waitForSelector('#availablePlayersList .player-card', { timeout: 10000 });
 
-    // Check that some players loaded
     const playerCards = await page.locator('#availablePlayersList .player-card').count();
-
-    expect(playerCards).toBeGreaterThan(0);
+    expect(playerCards).toBe(4);
   });
 
 });
