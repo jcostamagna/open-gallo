@@ -205,9 +205,12 @@ function initEquipos(data) {
     };
   }).filter(Boolean);
 
-  // Determine available years and set initial selection
+  // Determine available years. Keep the user's selection across background
+  // refreshes as long as it is still an option, otherwise use the latest year
   availableYears = getAvailableYears(allMatches);
-  selectedYear = availableYears.length > 0 ? availableYears[0] : currentYear;
+  if (!availableYears.includes(selectedYear)) {
+    selectedYear = availableYears.length > 0 ? availableYears[0] : currentYear;
+  }
 
   calculateStats();
   renderAllLists();
