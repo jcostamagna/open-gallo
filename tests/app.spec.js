@@ -101,4 +101,78 @@ test.describe('Open Gallo Tests', () => {
     expect(playerCards).toBe(4);
   });
 
+  test.describe('filters survive a background data refresh', () => {
+    // Two years of fixture data so every page shows a year selector.
+    // The teams page only offers the previous year when the current year has
+    // fewer than 6 match dates and the previous one has at least 6.
+    const year = new Date().getFullYear();
+    const matchDay = (date, pairs) => [`${date},${pairs[0]},`, ...pairs.slice(1).map(p => `,${p},`)];
+    const previousYearDates = ['05/03', '12/03', '19/03', '26/03', '02/04', '09/04'];
+    const matchesCsv = [
+      'Fecha,Equipo Ganador,Equipo Perdedor,',
+      ...previousYearDates.flatMap(d => matchDay(`${d}/${year - 1}`, ['Mati,Alejo', 'Chiqui,Trapa', 'Enzo,Juan'])),
+      ...matchDay(`05/02/${year}`, ['Alejo,Mati', 'Trapa,Chiqui', 'Juan,Enzo']),
+    ].join('\n');
+    const playersCsv = [
+      'Jugador,Jugados,Ganados,% Ganados',
+      'Alejo,3,1,0.33', 'Mati,3,2,0.66', 'Trapa,3,1,0.33',
+      'Chiqui,3,2,0.66', 'Enzo,3,2,0.66', 'Juan,3,1,0.33',
+    ].join('\n');
+
+    async function mockSheets(page) {
+      await page.route('**/script.google.com/**', route => {
+        const gid = new URL(route.request().url()).searchParams.get('gid');
+        route.fulfill({ status: 200, contentType: 'text/csv', body: gid === '0' ? matchesCsv : playersCsv });
+      });
+    }
+
+    // Simulates the stale-while-revalidate cache delivering fresh data
+    async function triggerRefresh(page) {
+      await page.evaluate(() => onDataRefreshed());
+      await page.waitForTimeout(300);
+    }
+
+    test('posiciones keeps year and min matches', async ({ page }) => {
+      await mockSheets(page);
+      await page.goto('/index.html');
+      await page.waitForSelector('#leaderboardTableBody tr');
+
+      // Defaults: latest year, smart min matches
+      await expect(page.locator('#yearFilter')).toHaveValue(String(year));
+
+      await page.selectOption('#yearFilter', String(year - 1));
+      await page.selectOption('#minMatches', '1');
+      await triggerRefresh(page);
+
+      await expect(page.locator('#yearFilter')).toHaveValue(String(year - 1));
+      await expect(page.locator('#minMatches')).toHaveValue('1');
+    });
+
+    test('partidos keeps "Todos"', async ({ page }) => {
+      await mockSheets(page);
+      await page.goto('/partidos.html');
+      await page.waitForSelector('#matchesContainer .match-row');
+
+      await expect(page.locator('#yearFilter')).toHaveValue(String(year));
+
+      await page.selectOption('#yearFilter', '');
+      await triggerRefresh(page);
+
+      await expect(page.locator('#yearFilter')).toHaveValue('');
+    });
+
+    test('equipos keeps the selected year', async ({ page }) => {
+      await mockSheets(page);
+      await page.goto('/equipos.html');
+      await page.waitForSelector('#availablePlayersList .player-card');
+
+      await expect(page.locator('#yearSelector')).toHaveValue(String(year));
+
+      await page.selectOption('#yearSelector', String(year - 1));
+      await triggerRefresh(page);
+
+      await expect(page.locator('#yearSelector')).toHaveValue(String(year - 1));
+    });
+  });
+
 });

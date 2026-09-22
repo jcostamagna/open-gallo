@@ -119,18 +119,36 @@ function initPosiciones(matchesData) {
 
   // Get available years and set default to latest
   const availableYears = getAvailableYears(allMatches);
-  const defaultYear = availableYears.length > 0 ? availableYears[0] : null;
+  let year = availableYears.length > 0 ? availableYears[0] : null;
 
-  // Calculate smart default for min matches based on the default year
-  const maxMatches = getMaxMatchesPlayed(allMatches, defaultYear);
-  const defaultMinMatches = getSmartMinMatchesDefault(maxMatches);
+  // On a background refresh the filters already exist: keep what the user
+  // picked as long as it is still a valid option ('' is "Todos")
+  const yearSelect = document.getElementById('yearFilter');
+  const minSelect = document.getElementById('minMatches');
+  const isRefresh = yearSelect.options.length > 0;
+  if (isRefresh) {
+    const pickedYear = yearSelect.value === '' ? null : parseInt(yearSelect.value);
+    if (pickedYear === null || availableYears.includes(pickedYear)) {
+      year = pickedYear;
+    }
+  }
+
+  // Min matches options depend on the selected year
+  const maxMatches = getMaxMatchesPlayed(allMatches, year);
+  let minMatches = getSmartMinMatchesDefault(maxMatches);
+  if (isRefresh) {
+    const pickedMin = parseInt(minSelect.value);
+    if (!isNaN(pickedMin) && pickedMin <= Math.min(maxMatches, 50)) {
+      minMatches = pickedMin;
+    }
+  }
 
   // Populate filters
-  populateYearFilter(availableYears, defaultYear);
-  populateMinMatchesFilter(maxMatches, defaultMinMatches);
+  populateYearFilter(availableYears, year);
+  populateMinMatchesFilter(maxMatches, minMatches);
 
   // Initial render
-  renderLeaderboard(defaultYear, defaultMinMatches);
+  renderLeaderboard(year, minMatches);
 }
 
 // Fetch matches and render leaderboard (filtered by valid players)

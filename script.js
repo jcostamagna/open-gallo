@@ -124,13 +124,23 @@ function initPartidos(matchesData) {
 
   // Get available years and set default to latest
   const availableYears = getAvailableYears(allMatches);
-  const defaultYear = availableYears.length > 0 ? availableYears[0] : null;
+  let year = availableYears.length > 0 ? availableYears[0] : null;
+
+  // On a background refresh the filter already exists: keep what the user
+  // picked as long as it is still a valid option ('' is "Todos")
+  const yearSelect = document.getElementById('yearFilter');
+  if (yearSelect.options.length > 0) {
+    const pickedYear = yearSelect.value === '' ? null : parseInt(yearSelect.value);
+    if (pickedYear === null || availableYears.includes(pickedYear)) {
+      year = pickedYear;
+    }
+  }
 
   // Populate year filter
-  populateYearFilter(availableYears, defaultYear);
+  populateYearFilter(availableYears, year);
 
-  // Initial render with default year
-  renderMatches(defaultYear);
+  // Initial render with selected year
+  renderMatches(year);
 }
 
 // Fetch and display matches grouped by date (filtered by valid players)
