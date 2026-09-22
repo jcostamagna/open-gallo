@@ -33,6 +33,8 @@
 
   <!-- Load the app's config (contains functions to test) -->
   <script src="config.js"></script>
+  <!-- Load equipos.js for scoring function tests (its page init fails silently here, unit functions still work) -->
+  <script src="equipos.js"></script>
 
   <script>
     // Simple test framework
@@ -62,6 +64,12 @@
     function assertTrue(value, message = '') {
       if (!value) {
         throw new Error(message || `Expected truthy value, got: ${value}`);
+      }
+    }
+
+    function assertClose(actual, expected, tolerance = 0.001, message = '') {
+      if (Math.abs(actual - expected) > tolerance) {
+        throw new Error(`${message}\nExpected: ~${expected}\nActual: ${actual}`);
       }
     }
 
@@ -200,6 +208,118 @@
       assertEqual(result.date, 'Match Date');
       assertEqual(result.winner, 'Winning Team');
       assertEqual(result.loser, 'Losing Team');
+    });
+
+    // ============================================
+    // SCORING TESTS
+    // ============================================
+
+    // Helper: create the scoring toggles so getCurrentWeights() uses a known state
+    function withToggles(state, fn) {
+      const ids = { useHistorical: 'historical', useCurrentYear: 'currentYear', useForm: 'form' };
+      Object.keys(ids).forEach(id => {
+        const el = document.createElement('input');
+        el.type = 'checkbox';
+        el.id = id;
+        el.checked = state[ids[id]];
+        el.style.display = 'none';
+        document.body.appendChild(el);
+      });
+      try {
+        fn();
+      } finally {
+        Object.keys(ids).forEach(id => document.getElementById(id)?.remove());
+      }
+    }
+
+    test('Scoring: calculateConfidence is 1.0 with 10+ career matches', () => {
+      assertEqual(calculateConfidence({ total: 10 }), 1.0);
+      assertEqual(calculateConfidence({ total: 50 }), 1.0);
+    });
+
+    test('Scoring: calculateConfidence scales down with few career matches', () => {
+      assertClose(calculateConfidence({ total: 0 }), 0.5);
+      assertClose(calculateConfidence({ total: 1 }), 0.55);
+      assertClose(calculateConfidence({ total: 5 }), 0.75);
+    });
+
+    test('Scoring: calculateConfidence uses fixed value for guests', () => {
+      assertEqual(calculateConfidence({ isGuest: true }), SCORING_CONFIG.guestConfidence);
+    });
+
+    test('Scoring: calculateFormScore neutral with no data, 100 with single win', () => {
+      assertEqual(calculateFormScore([]), 50);
+      assertEqual(calculateFormScore(['W']), 100);
+      assertEqual(calculateFormScore(['L']), 0);
+    });
+
+    test('Scoring: veteran with 2/2 current year does NOT score 100 (año actual only)', () => {
+      withToggles({ historical: false, currentYear: true, form: false }, () => {
+        // 40 career matches at 50%, but 2 wins in 2 matches this year
+        const player = {
+          isGuest: false,
+          percentage: '50.0',
+          currentYearPercentage: '100.0',
+          currentYearTotal: 2,
+          total: 40,
+          last5: ['W', 'W', 'L', 'W', 'L']
+        };
+        const groupStats = { min: 30, max: 70, avg: 50 };
+        const score = calculatePlayerScore(player, groupStats);
+        // Current year blends with overall: 100 * (2/10) + 50 * (8/10) = 60
+        assertClose(score, 60, 0.001, 'Small current-year sample should blend with overall %');
+      });
+    });
+
+    test('Scoring: single win in the year barely moves the score off overall % (año actual only)', () => {
+      withToggles({ historical: false, currentYear: true, form: false }, () => {
+        const player = {
+          isGuest: false,
+          percentage: '50.0',
+          currentYearPercentage: '100.0',
+          currentYearTotal: 1,
+          total: 40,
+          last5: ['W']
+        };
+        const groupStats = { min: 30, max: 70, avg: 50 };
+        const score = calculatePlayerScore(player, groupStats);
+        // 100 * (1/10) + 50 * (9/10) = 55
+        assertClose(score, 55, 0.001, 'One match in the year should weigh only 10%');
+      });
+    });
+
+    test('Scoring: veteran with 10+ current year matches uses pure current year %', () => {
+      withToggles({ historical: false, currentYear: true, form: false }, () => {
+        const player = {
+          isGuest: false,
+          percentage: '50.0',
+          currentYearPercentage: '80.0',
+          currentYearTotal: 12,
+          total: 40,
+          last5: ['W', 'W', 'L', 'W', 'L']
+        };
+        const groupStats = { min: 30, max: 70, avg: 50 };
+        const score = calculatePlayerScore(player, groupStats);
+        assertClose(score, 80, 0.001, 'Full current-year sample should not be blended');
+      });
+    });
+
+    test('Scoring: player with 1 career match regresses toward group average', () => {
+      withToggles({ historical: true, currentYear: true, form: true }, () => {
+        // Won his only match: raw score is 100 but confidence is only 0.55
+        const player = {
+          isGuest: false,
+          percentage: '100.0',
+          currentYearPercentage: '100.0',
+          currentYearTotal: 1,
+          total: 1,
+          last5: ['W']
+        };
+        const groupStats = { min: 30, max: 70, avg: 50 };
+        const score = calculatePlayerScore(player, groupStats);
+        assertTrue(score < 90, `Score should be regressed toward group avg, got ${score}`);
+        assertTrue(score > 50, `Winner should still be above group avg, got ${score}`);
+      });
     });
 
     // ============================================

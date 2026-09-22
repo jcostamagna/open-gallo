@@ -12,7 +12,7 @@ let availableYears = []; // Years available for selection
 const SCORING_CONFIG = {
   baseWeights: { overall: 0.35, currentYear: 0.40, form: 0.25 },
   minMatchesForConfidence: 10,
-  minCurrentYearMatches: 5,
+  minCurrentYearMatches: 10,
   formWeights: [0.30, 0.25, 0.20, 0.15, 0.10], // Most recent first
   guestConfidence: 0.6,
   minMatchesForYearOption: 6 // Minimum matches needed to show a year as an option
@@ -683,9 +683,15 @@ function calculatePlayerScore(player, groupStats) {
   }
 
   const overall = parseFloat(player.percentage) || 0;
-  const currentYear = player.currentYearPercentage !== null
+  const currentYearRaw = player.currentYearPercentage !== null
     ? parseFloat(player.currentYearPercentage)
     : overall; // Fallback to overall if no current year data
+
+  // Blend current year % with overall % when the year sample is small,
+  // so a player with e.g. 2 wins in 2 matches doesn't score 100
+  const currentYearConfidence = Math.min(1, (player.currentYearTotal || 0) / SCORING_CONFIG.minCurrentYearMatches);
+  const currentYear = (currentYearRaw * currentYearConfidence) + (overall * (1 - currentYearConfidence));
+
   const formScore = calculateFormScore(player.last5);
 
   // Get dynamic weights based on toggle state
