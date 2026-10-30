@@ -229,6 +229,11 @@ function renderLeaderboard(filterYear = null, minMatches = 10) {
 
   const totalPlayers = result.length;
 
+  // Number of red (bottom) rows is per group; the leaderboard only shows them
+  // when there are enough players that the red rows cannot overlap the podium
+  const redPositions = getRedPositionsCount();
+  const showRedPositions = totalPlayers > 3 + redPositions;
+
   result.forEach((player, index) => {
     const row = document.createElement('tr');
 
@@ -237,7 +242,7 @@ function renderLeaderboard(filterYear = null, minMatches = 10) {
       row.classList.add('champion');
     } else if (index < 3) {
       row.classList.add('top-position');
-    } else if (index >= totalPlayers - 3 && totalPlayers > 6) {
+    } else if (showRedPositions && index >= totalPlayers - redPositions) {
       row.classList.add('bottom-position');
     }
 

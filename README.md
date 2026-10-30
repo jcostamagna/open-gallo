@@ -81,6 +81,22 @@ const SHEETS = {
 const CURRENT_GROUP = 'group1'; // Change this to switch
 ```
 
+### Red Positions
+
+The leaderboard highlights the last few rows in red (the bottom positions). How
+many rows are highlighted is configurable per group, so leagues can differ:
+
+```javascript
+const SHEETS = {
+  maxpato: { id: '...', name: 'Max Pato', redPositions: 3, ... },
+  gallo:   { id: '...', name: 'Gallo',    redPositions: 4, ... }
+};
+```
+
+If `redPositions` is omitted or invalid, it defaults to `3`. Red rows are only
+shown when there are more than `3 + redPositions` players, so they never overlap
+the green podium (1st place and 2nd/3rd).
+
 ### Player Filtering
 
 If you have a separate "Players" tab in your sheet, configure `playersGid` to filter matches to only include registered players.

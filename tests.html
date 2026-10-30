@@ -211,6 +211,42 @@
     });
 
     // ============================================
+    // RED POSITIONS TESTS
+    // ============================================
+
+    test('redPositions: gallo highlights one more red row than maxpato', () => {
+      assertEqual(SHEETS.gallo.redPositions, 4);
+      assertEqual(SHEETS.maxpato.redPositions, 3);
+    });
+
+    test('getRedPositionsCount: reads the group configuration', () => {
+      assertEqual(getRedPositionsCount(SHEETS.gallo), 4);
+      assertEqual(getRedPositionsCount(SHEETS.maxpato), 3);
+    });
+
+    test('getRedPositionsCount: falls back to default when not configured', () => {
+      assertEqual(getRedPositionsCount({}), DEFAULT_RED_POSITIONS);
+      assertEqual(getRedPositionsCount(null), DEFAULT_RED_POSITIONS);
+    });
+
+    test('getRedPositionsCount: no argument uses the current group', () => {
+      // Omitting the argument triggers the default parameter, so it must
+      // report the active group's value instead of the fallback constant
+      assertEqual(getRedPositionsCount(), SHEETS[CURRENT_GROUP].redPositions);
+    });
+
+    test('getRedPositionsCount: rejects unusable values', () => {
+      assertEqual(getRedPositionsCount({ redPositions: -1 }), DEFAULT_RED_POSITIONS);
+      assertEqual(getRedPositionsCount({ redPositions: null }), DEFAULT_RED_POSITIONS);
+      assertEqual(getRedPositionsCount({ redPositions: '4' }), DEFAULT_RED_POSITIONS);
+      assertEqual(getRedPositionsCount({ redPositions: NaN }), DEFAULT_RED_POSITIONS);
+    });
+
+    test('getRedPositionsCount: truncates fractional values', () => {
+      assertEqual(getRedPositionsCount({ redPositions: 4.9 }), 4);
+    });
+
+    // ============================================
     // SCORING TESTS
     // ============================================
 
