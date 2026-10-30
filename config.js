@@ -7,6 +7,8 @@ const SHEETS = {
     playersGid: 515470337, // Jugadores tab
     // Column mappings - set to null to auto-detect from first row
     columns: null,
+    // How many rows at the bottom of the leaderboard get the red highlight
+    redPositions: 3,
     // Domain patterns that should show this group
     domains: ['realmaxpato', 'maxpato']
   },
@@ -16,6 +18,8 @@ const SHEETS = {
     matchesGid: 0,
     playersGid: 234960034,  // Jugadores 2026 tab
     columns: null,
+    // Gallo highlights one more red (bottom) position than the other groups
+    redPositions: 4,
     domains: ['opengallo', 'gallo']
   }
 };
@@ -40,6 +44,22 @@ const CURRENT_GROUP = detectGroup();
 // Get the current sheet config
 function getCurrentSheet() {
   return SHEETS[CURRENT_GROUP];
+}
+
+// Default number of red highlighted rows when a group does not define one
+const DEFAULT_RED_POSITIONS = 3;
+
+// Resolve how many rows at the bottom of the leaderboard are painted red.
+// Falls back to the default for missing or unusable values so adding a group
+// without the option keeps the previous behaviour.
+function getRedPositionsCount(sheet = getCurrentSheet()) {
+  const configured = sheet?.redPositions;
+
+  if (!Number.isFinite(configured) || configured < 0) {
+    return DEFAULT_RED_POSITIONS;
+  }
+
+  return Math.floor(configured);
 }
 
 // Google Apps Script URL (primary - most reliable)

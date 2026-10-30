@@ -175,4 +175,65 @@ test.describe('Open Gallo Tests', () => {
     });
   });
 
+  test.describe('red positions are per group', () => {
+    // Eight players so the red tail can never reach the green podium
+    const names = ['Alejo', 'Mati', 'Trapa', 'Chiqui', 'Enzo', 'Juan', 'Nico', 'Seba'];
+    const year = new Date().getFullYear();
+
+    // One match per date, so every player ends on a different win count and
+    // the leaderboard ordering is deterministic
+    const winnerOrder = ['Alejo', 'Mati', 'Trapa', 'Chiqui', 'Enzo', 'Juan', 'Nico'];
+    const matchesCsv = [
+      'Fecha,Equipo Ganador,Equipo Perdedor,',
+      ...winnerOrder.map((winner, i) => {
+        const day = String(i + 1).padStart(2, '0');
+        const loser = names[(names.indexOf(winner) + 1) % names.length];
+        return `${day}/02/${year},${winner},${loser},`;
+      }),
+    ].join('\n');
+    const playersCsv = ['Jugador,Jugados,Ganados,% Ganados', ...names.map(n => `${n},2,1,0.5`)].join('\n');
+
+    async function mockSheets(page) {
+      await page.route('**/script.google.com/**', route => {
+        const gid = new URL(route.request().url()).searchParams.get('gid');
+        route.fulfill({ status: 200, contentType: 'text/csv', body: gid === '0' ? matchesCsv : playersCsv });
+      });
+    }
+
+    // Row indexes that received the red bottom highlight
+    function redIndexes(page) {
+      return page.$$eval('#leaderboardTableBody tr', rows =>
+        rows.map((row, i) => (row.classList.contains('bottom-position') ? i : null)).filter(i => i !== null)
+      );
+    }
+
+    test('gallo paints four red rows, maxpato keeps three', async ({ page }) => {
+      await mockSheets(page);
+
+      await page.goto('http://gallo.localhost:8080/index.html');
+      await page.waitForSelector('#leaderboardTableBody tr');
+      // Show every player so all eight rows are ranked
+      await page.selectOption('#minMatches', '1');
+      await expect(page.locator('#leaderboardTableBody tr')).toHaveCount(8);
+
+      await expect(page.locator('#leaderboardTableBody tr.bottom-position')).toHaveCount(4);
+      expect(await redIndexes(page)).toEqual([4, 5, 6, 7]);
+
+      // Red rows must never overlap the green podium
+      const topIndexes = await page.$$eval('#leaderboardTableBody tr', rows =>
+        rows.map((row, i) => (row.classList.contains('top-position') || row.classList.contains('champion') ? i : null)).filter(i => i !== null)
+      );
+      expect(topIndexes).toEqual([0, 1, 2]);
+
+      // Max Pato keeps the three red rows it had before this change
+      await page.goto('http://maxpato.localhost:8080/index.html');
+      await page.waitForSelector('#leaderboardTableBody tr');
+      await page.selectOption('#minMatches', '1');
+      await expect(page.locator('#leaderboardTableBody tr')).toHaveCount(8);
+
+      await expect(page.locator('#leaderboardTableBody tr.bottom-position')).toHaveCount(3);
+      expect(await redIndexes(page)).toEqual([5, 6, 7]);
+    });
+  });
+
 });
